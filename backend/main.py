@@ -13,7 +13,7 @@ from pydantic import BaseModel
 import google.generativeai as genai
 
 # ==============================================================================
-# KONFIGURASI & INISIALISASI (100% GEMINI AI - TANPA OPENAI)
+# KONFIGURASI & INISIALISASI (100% GEMINI AI)
 # ==============================================================================
 app = FastAPI(title="AutoClip AI Backend (100% Gemini Edition)", version="2.0.0")
 
@@ -188,10 +188,10 @@ async def process_video(
                     raise HTTPException(status_code=413, detail="Ukuran video melebihi batas 500MB.")
                 buffer.write(chunk)
 
-        # 1. Ekstrak audio MP3 agar ringan dianalisis langsung oleh Gemini Multimodal
+        # 1. Ekstrak audio MP3
         extract_audio_mp3(source_video_path, audio_path)
 
-        # 2. Unggah audio ke Gemini File API untuk transkripsi + pemilihan klip sekaligus
+        # 2. Unggah audio ke Gemini
         uploaded_gemini_file = genai.upload_file(path=str(audio_path), mime_type="audio/mp3")
         while uploaded_gemini_file.state.name == "PROCESSING":
             time.sleep(2)
@@ -200,7 +200,7 @@ async def process_video(
         prompt = (
             "Dengarkan file audio video ini dengan teliti. Tugas Anda sebagai editor video AI adalah:\n"
             "1. Menemukan momen percakapan paling menarik sesuai instruksi pengguna.\n"
-            "2. Menentukan timestamp (start_time dan end_time dalam satuan detik) yang akurat tanpa memotong tengah kalimat.\n"
+            "2. Menentukan timestamp (start_time dan end_time dalam satuan detik) yang akurat.\n"
             "3. Menuliskan transkrip percakapan yang diucapkan pada klip tersebut untuk dijadikan subtitle.\n\n"
             f"Instruksi Pengguna: {instruction}\n"
             f"Jumlah klip maksimal: {num_clips}\n"
@@ -219,9 +219,9 @@ async def process_video(
         selected_clips = ai_result.get("clips", [])
 
         if not selected_clips:
-            raise HTTPException(status_code=422, detail="AI tidak menemukan klip yang sesuai. Coba instruksi lain.")
+            raise HTTPException(status_code=422, detail="AI tidak menemukan klip yang sesuai.")
 
-        # 3. Potong Video & Tanamkan Subtitle dengan FFmpeg
+        # 3. Potong Video dengan FFmpeg
         output_clips: List[ClipMetadata] = []
         for idx, clip in enumerate(selected_clips[:num_clips]):
             start_t = float(clip["start_time"])
@@ -319,7 +319,7 @@ async def get_generated_file(job_id: str, filename: str):
     safe_filename = Path(filename).name
     file_path = JOBS_DIR / job_id / safe_filename
     if not file_path.exists():
-        raise HTTPException(status_code=404, detail="File tidak ditemukan.")
+    raise HTTPException(status_code=404, detail="File tidak ditemukan.")
     media_type = "video/mp4" if safe_filename.endswith(".mp4") else "application/x-subrip"
     return FileResponse(path=file_path, media_type=media_type, filename=safe_filename)
 
